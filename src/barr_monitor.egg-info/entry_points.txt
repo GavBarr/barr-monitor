@@ -1,0 +1,2 @@
+[console_scripts]
+barr-monitor = src.main:main

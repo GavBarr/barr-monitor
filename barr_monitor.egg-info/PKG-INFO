@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: barr-monitor
+Version: 1.0.0
+Summary: A log analyzer CLI tool that will monitor log files for keywords such as [ERROR], [WARNING], [CRITICAL]
+Author: Gavin Barrett
+Author-email: gavinbarrett2001@gmail.com
+Requires-Dist: psutil
+Dynamic: author
+Dynamic: author-email
+Dynamic: requires-dist
+Dynamic: summary
