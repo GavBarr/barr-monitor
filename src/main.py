@@ -67,15 +67,18 @@ def save_report(results, export_path):
     except Exception as e:
         print(f"[ERROR] Could not write to {export_path}: {e}")
 
-def watch_logs(log_path, interval, run_time, export_path=None, keywords=None):
+def watch_logs(log_path, interval, run_time, export_path=None, keywords=None, process_name=None):
     """Reprocesses logs at a set interval and terminates after the specified run-time."""
     pid = os.getpid()
     start_time = time.time()
 
-    with open(PID_FILE, "a") as f:
-        f.write(f"{pid}\n")
+    # Use the provided process name or fallback to "barr-monitor"
+    process_name = process_name if process_name else "barr-monitor"
 
-    print(f"[WATCH MODE] Running in the background (PID: {pid})")
+    with open(PID_FILE, "a") as f:
+        f.write(f"{pid} {process_name}\n")  # Store PID with process name
+
+    print(f"[WATCH MODE] Running in the background (PID: {pid}, Name: {process_name})")
 
     while True:
         analyze_logs(log_path, export_path, keywords)
@@ -87,22 +90,30 @@ def watch_logs(log_path, interval, run_time, export_path=None, keywords=None):
         print(f"\n[INFO] Sleeping for {interval} minutes before next check...")
         time.sleep(interval * 60)
 
+
+
+
 def list_processes():
-    """Lists running barr-monitor processes."""
+    """Lists running barr-monitor processes with names."""
     if not os.path.exists(PID_FILE):
         print("[INFO] No active barr-monitor processes found.")
         return
 
     print("[ACTIVE PROCESSES]")
     with open(PID_FILE, "r") as f:
-        pids = f.readlines()
-    
-    for pid in pids:
-        pid = pid.strip()
-        if pid and psutil.pid_exists(int(pid)):
-            print(f"barr-monitor (PID: {pid})")
-        else:
-            remove_stale_pid(pid)
+        lines = f.readlines()
+
+    for line in lines:
+        parts = line.strip().split(" ", 1)
+        if len(parts) == 2:
+            pid, name = parts
+            if pid.isdigit() and psutil.pid_exists(int(pid)):
+                print(f"barr-monitor (PID: {pid}, Name: {name})")
+            else:
+                remove_stale_pid(pid)
+
+
+
 
 def remove_stale_pid(pid):
     """Removes a stale PID from the PID file if it no longer exists."""
@@ -115,7 +126,7 @@ def remove_stale_pid(pid):
                 f.write(p)
 
 def stop_process(pid):
-    """Stops a barr-monitor process by PID."""
+    """Stops a barr-monitor process by PID only."""
     if not psutil.pid_exists(int(pid)):
         print(f"[ERROR] Process {pid} not found.")
         return
@@ -123,6 +134,8 @@ def stop_process(pid):
     os.kill(int(pid), signal.SIGTERM)
     print(f"[INFO] Stopped barr-monitor process {pid}")
     remove_stale_pid(pid)
+
+
 
 def main():
     parser = argparse.ArgumentParser(description="Barr Monitor - Log Analyzer CLI")
@@ -132,6 +145,7 @@ def main():
     parser.add_argument("export_path", nargs="?", help="Path to export the report (optional)")
     parser.add_argument("pid", nargs="?", help="Process ID to stop (used with 'stop')")
     parser.add_argument("--keywords", type=str, help="Comma-separated list of custom keywords to search for in logs")
+    parser.add_argument("--process-name", help="Custom name for the process (used with --watch)")
 
 
     args = parser.parse_args()
@@ -149,24 +163,31 @@ def main():
         list_processes()
     elif args.command == "stop":
         if args.pid:
-            stop_process(args.pid)
+            stop_process(args.pid)  # Now supports process name or PID
         else:
-            print("[ERROR] Please provide a process ID to stop.")
+            print("[ERROR] Please provide a process ID or process name to stop.")
     elif args.watch:
         if not args.run_time:
             print("[ERROR] --run-time is required when using --watch.")
             sys.exit(1)
 
         print(f"[INFO] Watch mode enabled - Running every {args.watch} minutes for up to {args.run_time} hours.")
-            
+
         if "BARR_MONITOR_DAEMON" not in os.environ:
-            cmd = [sys.executable, __file__, args.command, "--watch", str(args.watch), "--run-time", str(args.run_time)]
+            cmd = [
+                sys.executable, __file__, args.command,
+                "--watch", str(args.watch),
+                "--run-time", str(args.run_time)
+            ]
             if args.export_path:
                 cmd.append(args.export_path)
-            
+            if args.process_name:  # Ensure process name is passed
+                cmd.append("--process-name")
+                cmd.append(args.process_name)
+
             env = os.environ.copy()
             env["BARR_MONITOR_DAEMON"] = "1"
-            
+
             subprocess.Popen(
                 cmd,
                 env=env,
@@ -175,11 +196,12 @@ def main():
                 close_fds=True,
                 start_new_session=True
             )
-            
+
             print("[INFO] Process started in the background. You can now close the terminal.")
             sys.exit(0)
-        
-        watch_logs(args.command, args.watch, args.run_time, args.export_path, keywords)
+
+        # Now pass process_name correctly to watch_logs
+        watch_logs(args.command, args.watch, args.run_time, args.export_path, keywords, process_name=args.process_name)
     else:
         analyze_logs(args.command, args.export_path, keywords)
 
