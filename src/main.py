@@ -12,6 +12,8 @@ PID_FILE = "/tmp/barr-monitor.pid"  # Stores running processes
 # Default keywords for searching errors
 DEFAULT_KEYWORDS = ["ERROR", "WARNING", "CRITICAL"]
 
+
+
 def analyze_logs(log_path, export_path=None, keywords=None):
     """Scans the given log file or directory for errors and writes results to a file if needed."""
     results = []
@@ -139,7 +141,7 @@ def stop_process(pid):
 
 def main():
     parser = argparse.ArgumentParser(description="Barr Monitor - Log Analyzer CLI")
-    parser.add_argument("command", help="log path OR 'listing'/'stop'")
+    parser.add_argument("command", help="log path OR 'listing'/'stop'/'get-system-id'")
     parser.add_argument("--watch", type=int, help="Time interval (in minutes) for reprocessing logs")
     parser.add_argument("--run-time", type=int, help="Time limit (in hours) for process execution")
     parser.add_argument("export_path", nargs="?", help="Path to export the report (optional)")
@@ -151,6 +153,9 @@ def main():
     args = parser.parse_args()
 
     keywords = DEFAULT_KEYWORDS
+
+    
+
     if args.keywords:
         keywords = [keyword.strip() for keyword in args.keywords.split(",")]
 
