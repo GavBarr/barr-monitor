@@ -1,5 +1,5 @@
 This is a command line tool (specifically for windows only for now) that can monitor logging directories. Specifically it will monitor for any files .txt or .log. It is monitoring specifially for issues within the log files, keywords that are looked for are
-"ERROR", "WARNING" and "CRITICAL". You can set the process do be ran in the background and perform checks in time increments, or perform a one time check. There is also the ability to ouput what is found to a file that you specify.
+"ERROR", "WARNING" and "CRITICAL". You also have the ability to set your own keywords via the --keywords arg. Another argument that is necessary is the --run-time, this will determine how long the process should be active. If no arg is passed, then the process will be finished in 1 hour. You can set the process do be ran in the background and perform checks in time increments, or perform a one time check. There is also the ability to ouput what is found to a file that you specify.
 
 Examples:
   barr-monitor logs                         #this will perform an instant/one time monitor for the logs directory
