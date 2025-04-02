@@ -1,4 +1,5 @@
 import argparse
+import tempfile
 import time
 import os
 import re
@@ -8,7 +9,8 @@ import subprocess
 import sys
 
 
-PID_FILE = "/tmp/barr-monitor.pid"  # Stores running processes
+PID_FILE = os.path.join(tempfile.gettempdir(), "barr-monitor.pid")  # Cross-platform temp directory
+
 
 # Default keywords for searching errors
 DEFAULT_KEYWORDS = ["ERROR", "WARNING", "CRITICAL"]
@@ -134,7 +136,11 @@ def stop_process(pid):
         print(f"[ERROR] Process {pid} not found.")
         return
 
-    os.kill(int(pid), signal.SIGTERM)
+    if os.name == "nt":
+        subprocess.call(["taskkill", "/F", "/PID", str(pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    else:
+        os.kill(int(pid), signal.SIGTERM)
+
     print(f"[INFO] Stopped barr-monitor process {pid}")
     remove_stale_pid(pid)
 
@@ -155,6 +161,7 @@ def main():
     args = parser.parse_args()
 
     keywords = DEFAULT_KEYWORDS
+    
 
     
 
@@ -196,14 +203,25 @@ def main():
             env = os.environ.copy()
             env["BARR_MONITOR_DAEMON"] = "1"
 
-            subprocess.Popen(
-                cmd,
-                env=env,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                close_fds=True,
-                start_new_session=True
-            )
+            if os.name == "nt":
+                DETACHED_PROCESS = 0x00000008
+                subprocess.Popen(
+                    cmd,
+                    env=env,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    creationflags=DETACHED_PROCESS  # Windows-specific detached mode
+                )
+            else:
+                subprocess.Popen(
+                    cmd,
+                    env=env,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    close_fds=True,
+                    start_new_session=True
+                )
+
 
             print("[INFO] Process started in the background. You can now close the terminal.")
             sys.exit(0)
