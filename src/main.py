@@ -7,6 +7,7 @@ import signal
 import subprocess
 import sys
 
+
 PID_FILE = "/tmp/barr-monitor.pid"  # Stores running processes
 
 # Default keywords for searching errors
@@ -147,7 +148,8 @@ def main():
     parser.add_argument("export_path", nargs="?", help="Path to export the report (optional)")
     parser.add_argument("pid", nargs="?", help="Process ID to stop (used with 'stop')")
     parser.add_argument("--keywords", type=str, help="Comma-separated list of custom keywords to search for in logs")
-    parser.add_argument("--process-name", help="Custom name for the process (used with --watch)")
+    parser.add_argument("--process-name", type=str, help="Custom name for the process (used with --watch)")
+
 
 
     args = parser.parse_args()
@@ -190,6 +192,7 @@ def main():
                 cmd.append("--process-name")
                 cmd.append(args.process_name)
 
+
             env = os.environ.copy()
             env["BARR_MONITOR_DAEMON"] = "1"
 
@@ -207,6 +210,7 @@ def main():
 
         # Now pass process_name correctly to watch_logs
         watch_logs(args.command, args.watch, args.run_time, args.export_path, keywords, process_name=args.process_name)
+
     else:
         analyze_logs(args.command, args.export_path, keywords)
 
