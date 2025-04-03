@@ -252,13 +252,14 @@ def main():
                     creationflags=DETACHED_PROCESS  # Windows-specific detached mode
                 )
             else:
+                # Linux: Use setsid to start the process in a new session
                 subprocess.Popen(
                     cmd,
                     env=env,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
-                    close_fds=True,
-                    start_new_session=True
+                    close_fds=True,           # Close file descriptors
+                    preexec_fn=os.setsid      # Detach process by starting a new session
                 )
 
 
