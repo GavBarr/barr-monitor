@@ -17,6 +17,10 @@ DEFAULT_KEYWORDS = ["ERROR", "WARNING", "CRITICAL"]
 
 
 
+
+
+
+
 def analyze_logs(log_path, export_path=None, keywords=None):
     """Scans the given log file or directory for errors and writes results to a file if needed."""
     results = []
@@ -94,6 +98,45 @@ def watch_logs(log_path, interval, run_time, export_path=None, keywords=None, pr
             break
         print(f"\n[INFO] Sleeping for {interval} minutes before next check...")
         time.sleep(interval * 60)
+
+    # Start a new process if needed
+    if "BARR_MONITOR_DAEMON" not in os.environ:
+        cmd = [
+            sys.executable, __file__, "watch",
+            "--watch", str(interval),
+            "--run-time", str(run_time)
+        ]
+        if export_path:
+            cmd.append(export_path)
+        if process_name:
+            cmd.append("--process-name")
+            cmd.append(process_name)
+
+        env = os.environ.copy()
+        env["BARR_MONITOR_DAEMON"] = "1"
+
+        if os.name == "nt":
+            DETACHED_PROCESS = 0x00000008
+            subprocess.Popen(
+                cmd,
+                env=env,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=DETACHED_PROCESS
+            )
+        else:
+            subprocess.Popen(
+                cmd,
+                env=env,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                close_fds=True,
+                start_new_session=True
+            )
+
+        print("[INFO] Process started in the background. You can now close the terminal.")
+        sys.exit(0)
+
 
 
 
@@ -175,11 +218,7 @@ def main():
             stop_process(args.export_path)  # Use export_path to store the PID for 'stop'
     elif args.command == "listing":
         list_processes()
-    elif args.command == "stop":
-        if args.pid:
-            stop_process(args.pid)  # Now supports process name or PID
-        else:
-            print("[ERROR] Please provide a process ID or process name to stop.")
+    
     elif args.watch:
         if not args.run_time:
             print("[ERROR] --run-time is required when using --watch.")
