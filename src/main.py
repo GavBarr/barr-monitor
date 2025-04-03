@@ -99,45 +99,6 @@ def watch_logs(log_path, interval, run_time, export_path=None, keywords=None, pr
         print(f"\n[INFO] Sleeping for {interval} minutes before next check...")
         time.sleep(interval * 60)
 
-    # Start a new process if needed
-    if "BARR_MONITOR_DAEMON" not in os.environ:
-        cmd = [
-            sys.executable, __file__, "watch",
-            "--watch", str(interval),
-            "--run-time", str(run_time)
-        ]
-        if export_path:
-            cmd.append(export_path)
-        if process_name:
-            cmd.append("--process-name")
-            cmd.append(process_name)
-
-        env = os.environ.copy()
-        env["BARR_MONITOR_DAEMON"] = "1"
-
-        if os.name == "nt":
-            DETACHED_PROCESS = 0x00000008
-            subprocess.Popen(
-                cmd,
-                env=env,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                creationflags=DETACHED_PROCESS
-            )
-        else:
-            subprocess.Popen(
-                cmd,
-                env=env,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                close_fds=True,
-                start_new_session=True
-            )
-
-        print("[INFO] Process started in the background. You can now close the terminal.")
-        sys.exit(0)
-
-
 
 
 
@@ -226,7 +187,8 @@ def main():
 
         print(f"[INFO] Watch mode enabled - Running every {args.watch} minutes for up to {args.run_time} hours.")
 
-        if "BARR_MONITOR_DAEMON" not in os.environ:
+        if "BARR_MONITOR_DAEMON" not in os.environ:  # Check if the process is already running in the background
+            # Prepare the command to run as a background process
             cmd = [
                 sys.executable, __file__, args.command,
                 "--watch", str(args.watch),
@@ -234,10 +196,9 @@ def main():
             ]
             if args.export_path:
                 cmd.append(args.export_path)
-            if args.process_name:  # Ensure process name is passed
+            if args.process_name:
                 cmd.append("--process-name")
                 cmd.append(args.process_name)
-
 
             env = os.environ.copy()
             env["BARR_MONITOR_DAEMON"] = "1"
@@ -252,21 +213,19 @@ def main():
                     creationflags=DETACHED_PROCESS  # Windows-specific detached mode
                 )
             else:
-                # Linux: Use setsid to start the process in a new session
                 subprocess.Popen(
                     cmd,
                     env=env,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
-                    close_fds=True,           # Close file descriptors
-                    preexec_fn=os.setsid      # Detach process by starting a new session
+                    close_fds=True,  # Close file descriptors
+                    preexec_fn=os.setsid  # Linux-specific detached mode
                 )
-
 
             print("[INFO] Process started in the background. You can now close the terminal.")
             sys.exit(0)
 
-        # Now pass process_name correctly to watch_logs
+        # Call watch_logs if it's not running in daemon mode
         watch_logs(args.command, args.watch, args.run_time, args.export_path, keywords, process_name=args.process_name)
 
     else:
