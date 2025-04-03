@@ -14,7 +14,6 @@ PID_FILE = "/tmp/barr-monitor.pid"  # Stores running processes
 DEFAULT_KEYWORDS = ["ERROR", "WARNING", "CRITICAL"]
 
 
-
 def analyze_logs(log_path, export_path=None, keywords=None):
     """Scans the given log file or directory for errors and writes results to a file if needed."""
     results = []
@@ -134,7 +133,11 @@ def stop_process(pid):
         print(f"[ERROR] Process {pid} not found.")
         return
 
-    os.kill(int(pid), signal.SIGTERM)
+    if os.name == "nt":
+        subprocess.call(["taskkill", "/F", "/PID", str(pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    else:
+        os.kill(int(pid), signal.SIGTERM)
+
     print(f"[INFO] Stopped barr-monitor process {pid}")
     remove_stale_pid(pid)
 
@@ -142,19 +145,14 @@ def stop_process(pid):
 
 def main():
     parser = argparse.ArgumentParser(description="Barr Monitor - Log Analyzer CLI")
-    parser.add_argument("command", help="log path OR 'listing'/'stop'/'get-system-id'")
-    parser.add_argument("--watch", type=int, help="Time interval (in minutes) for reprocessing logs")
-    parser.add_argument("--run-time", type=int, help="Time limit (in hours) for process execution")
+    parser.add_argument("command", help="log path")
     parser.add_argument("export_path", nargs="?", help="Path to export the report (optional)")
-    parser.add_argument("pid", nargs="?", help="Process ID to stop (used with 'stop')")
     parser.add_argument("--keywords", type=str, help="Comma-separated list of custom keywords to search for in logs")
-    parser.add_argument("--process-name", type=str, help="Custom name for the process (used with --watch)")
-
-
 
     args = parser.parse_args()
 
     keywords = DEFAULT_KEYWORDS
+    
 
     
 
@@ -196,14 +194,25 @@ def main():
             env = os.environ.copy()
             env["BARR_MONITOR_DAEMON"] = "1"
 
-            subprocess.Popen(
-                cmd,
-                env=env,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                close_fds=True,
-                start_new_session=True
-            )
+            if os.name == "nt":
+                DETACHED_PROCESS = 0x00000008
+                subprocess.Popen(
+                    cmd,
+                    env=env,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    creationflags=DETACHED_PROCESS  # Windows-specific detached mode
+                )
+            else:
+                subprocess.Popen(
+                    cmd,
+                    env=env,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    close_fds=True,
+                    start_new_session=True
+                )
+
 
             print("[INFO] Process started in the background. You can now close the terminal.")
             sys.exit(0)
