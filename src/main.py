@@ -1,4 +1,5 @@
 import argparse
+import tempfile
 import time
 import os
 import re
@@ -8,10 +9,12 @@ import subprocess
 import sys
 
 
-PID_FILE = "/tmp/barr-monitor.pid"  # Stores running processes
+PID_FILE = os.path.join(tempfile.gettempdir(), "barr-monitor.pid")  # Cross-platform temp directory
+
 
 # Default keywords for searching errors
 DEFAULT_KEYWORDS = ["ERROR", "WARNING", "CRITICAL"]
+
 
 
 def analyze_logs(log_path, export_path=None, keywords=None):
@@ -145,9 +148,15 @@ def stop_process(pid):
 
 def main():
     parser = argparse.ArgumentParser(description="Barr Monitor - Log Analyzer CLI")
-    parser.add_argument("command", help="log path")
+    parser.add_argument("command", help="log path OR 'listing'/'stop'/'get-system-id'")
+    parser.add_argument("--watch", type=int, help="Time interval (in minutes) for reprocessing logs")
+    parser.add_argument("--run-time", type=int, help="Time limit (in hours) for process execution")
     parser.add_argument("export_path", nargs="?", help="Path to export the report (optional)")
+    parser.add_argument("pid", nargs="?", help="Process ID to stop (used with 'stop')")
     parser.add_argument("--keywords", type=str, help="Comma-separated list of custom keywords to search for in logs")
+    parser.add_argument("--process-name", type=str, help="Custom name for the process (used with --watch)")
+
+
 
     args = parser.parse_args()
 
